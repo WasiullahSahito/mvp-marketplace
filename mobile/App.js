@@ -46,6 +46,29 @@ const Btn = ({ title, onPress, kind = 'dark', disabled, style }) => (
     <Text style={[s.btnTxt, kind === 'accent' && { color: '#1b1305' }, (kind === 'alt') && { color: '#1e293b' }, kind === 'danger' && { color: '#dc2626' }]}>{title}</Text>
   </Pressable>
 );
+const Empty = ({ icon, title, text, action }) => (
+  <View style={{ alignItems: 'center', padding: 30 }}>
+    <Text style={{ fontSize: 40 }}>{icon}</Text><Text style={{ fontWeight: '700', fontSize: 17, marginTop: 6 }}>{title}</Text>
+    <Text style={[s.muted, { textAlign: 'center', marginVertical: 8 }]}>{text}</Text>{action}
+  </View>
+);
+const STEPS = ['New', 'Confirmed', 'Shipped', 'Delivered'];
+const Stepper = ({ status }) => {
+  const at = STEPS.indexOf(status);
+  return (
+    <View style={{ flexDirection: 'row', marginVertical: 12 }}>
+      {STEPS.map((st, i) => (
+        <View key={st} style={{ flex: 1, alignItems: 'center' }}>
+          {i > 0 && <View style={{ position: 'absolute', top: 12, left: '-50%', width: '100%', height: 3, backgroundColor: i <= at ? '#15803d' : '#e2e8f0' }} />}
+          <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: i <= at ? '#15803d' : '#e2e8f0', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: i <= at ? '#fff' : '#64748b', fontWeight: '700' }}>{i < at ? '✓' : i + 1}</Text>
+          </View>
+          <Text style={{ fontSize: 11, marginTop: 4, color: i === at ? '#1e293b' : '#64748b', fontWeight: i === at ? '700' : '400' }}>{st}</Text>
+        </View>
+      ))}
+    </View>
+  );
+};
 const Pill = ({ text }) => <Text style={s.pill}>{text}</Text>;
 
 // ---------- screens ----------
@@ -98,9 +121,12 @@ function ProductList({ onOpen }) {
         <Btn title="Search" onPress={() => load(q)} kind="accent" style={{ marginLeft: 8 }} />
       </View>
       {!!err && <Text style={s.err}>{err}</Text>}
-      {items === null ? <ActivityIndicator style={{ marginTop: 30 }} /> : (
+      {items === null ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 8 }}>{[0, 1, 2, 3].map((i) => <View key={i} style={s.skel} />)}</View>
+      ) : (
         <FlatList data={items} keyExtractor={(p) => String(p.id)} numColumns={2} contentContainerStyle={{ padding: 8 }} columnWrapperStyle={{ gap: 8 }}
-          ListEmptyComponent={<Text style={s.muted}>No products found.</Text>}
+          ListHeaderComponent={!q.trim() ? <View style={s.hero}><Text style={s.heroT}>Furniture, your way</Text><Text style={{ color: '#cbd5e1' }}>Pick colour, size and storage – the price updates as you choose.</Text></View> : <Text style={[s.muted, { marginBottom: 6 }]}>{items.length} result{items.length === 1 ? '' : 's'}</Text>}
+          ListEmptyComponent={<Empty icon="🔍" title="No products found" text="Try a different search." />}
           renderItem={({ item: p }) => (
             <Pressable style={s.pcard} onPress={() => onOpen(p.id)}>
               {p.discount_percent > 0 && <Text style={s.off}>{p.discount_percent}% OFF</Text>}
@@ -205,6 +231,12 @@ function ProductPage({ id, onBack, onCartChange, requireLogin }) {
               )}
             </View>
           ))}
+          <View style={s.summary}>
+            <Text style={{ fontWeight: '700', marginBottom: 4 }}>Your selection</Text>
+            <View style={s.srow}><Text>Base price</Text><Text>{money(p.base_price)}</Text></View>
+            {chosen.filter((v) => v.price_delta).map((v) => <View key={v.id} style={s.srow}><Text style={{ flex: 1 }}>{p.groups.find((g) => g.values.some((x) => x.id === v.id)).name}: {v.label}</Text><Text>+{money(v.price_delta)}</Text></View>)}
+            <View style={[s.srow, { borderTopWidth: 1, borderColor: '#e2e8f0', marginTop: 6, paddingTop: 6 }]}><Text style={{ fontWeight: '800' }}>Total</Text><Text style={{ fontWeight: '800' }}>{money(price)}</Text></View>
+          </View>
           <Text style={s.groupTitle}>Description</Text>
           <Text>{p.description}</Text>
         </View>
@@ -224,7 +256,7 @@ function Cart({ onChange, onCheckout }) {
   useEffect(() => { load(); }, [load]);
   if (err) return <Text style={s.err}>{err}</Text>;
   if (!c) return <ActivityIndicator style={{ marginTop: 30 }} />;
-  if (!c.lines.length) return <Text style={[s.muted, { padding: 20 }]}>Your basket is empty.</Text>;
+  if (!c.lines.length) return <Empty icon="🛒" title="Your basket is empty" text="Find something you like and it will appear here." />;
   return (
     <ScrollView contentContainerStyle={{ padding: 12 }}>
       {c.lines.map((l) => (
@@ -279,7 +311,7 @@ function Orders() {
   if (!o) return <ActivityIndicator style={{ marginTop: 30 }} />;
   return (
     <FlatList data={o} keyExtractor={(x) => String(x.id)} contentContainerStyle={{ padding: 12 }} onRefresh={load} refreshing={false}
-      ListEmptyComponent={<Text style={s.muted}>No orders yet.</Text>}
+      ListEmptyComponent={<Empty icon="📦" title="No orders yet" text="Orders you place will show here with live status." />}
       renderItem={({ item }) => (
         <View style={s.card}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={{ fontWeight: '700' }}>Order #{item.id}</Text><Pill text={item.status} /></View>
@@ -290,7 +322,8 @@ function Orders() {
               {i.options.map((op) => <Text key={op.group} style={s.small}>{op.group}: {op.label}</Text>)}
             </View>
           ))}
-          <Text style={{ fontWeight: '800', marginTop: 8 }}>Total {money(item.total)}</Text>
+          <Stepper status={item.status} />
+          <Text style={{ fontWeight: '800' }}>Total {money(item.total)}</Text>
         </View>
       )} />
   );
@@ -380,6 +413,9 @@ const s = StyleSheet.create({
   choiceOn: { borderColor: '#1e293b', backgroundColor: '#f1f5f9' },
   sticky: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#fff', borderTopWidth: 1, borderColor: '#e2e8f0', padding: 10, flexDirection: 'row', alignItems: 'center' },
   card: { backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#e2e8f0', padding: 12, marginBottom: 10 },
+  skel: { width: (W - 24) / 2, height: 200, borderRadius: 10, backgroundColor: '#e8edf3' },
+  hero: { backgroundColor: '#1e293b', borderRadius: 12, padding: 16, marginBottom: 10 }, heroT: { color: '#fff', fontSize: 20, fontWeight: '800', marginBottom: 2 },
+  summary: { backgroundColor: '#f1f5f9', borderRadius: 10, padding: 12, marginVertical: 12 }, srow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, paddingVertical: 2 },
   pill: { backgroundColor: '#dbeafe', color: '#1d4ed8', fontWeight: '700', paddingHorizontal: 10, paddingVertical: 2, borderRadius: 99, overflow: 'hidden' },
   tabbar: { flexDirection: 'row', backgroundColor: '#fff', borderTopWidth: 1, borderColor: '#e2e8f0' },
   tab: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center' }, tabTxt: { fontSize: 11, color: '#64748b' },
