@@ -39,16 +39,17 @@ async function describeProduct({ image_url, hint, category }) {
 }
 
 const words = (s) => new Set(String(s).toLowerCase().match(/[a-z]{3,}/g) || []);
-function similarProducts(p, card) {
-  const rows = db.prepare(`SELECT p.*, u.shop_name, c.name AS category_name FROM products p JOIN users u ON u.id=p.seller_id
-    LEFT JOIN categories c ON c.id=p.category_id WHERE p.id<>? AND p.status='active' AND u.status='approved'`).all(p.id);
+async function similarProducts(p, card) {
+  const rows = await db.all(`SELECT p.*, u.shop_name, c.name AS category_name FROM products p JOIN users u ON u.id=p.seller_id
+    LEFT JOIN categories c ON c.id=p.category_id WHERE p.id<>? AND p.status='active' AND u.status='approved'`, [p.id]);
   const tw = words(p.title + ' ' + p.description);
-  return rows.map((r) => {
+  const ranked = rows.map((r) => {
     let score = r.category_id === p.category_id ? 3 : 0;
     score += 2 / (1 + Math.abs(r.base_price - p.base_price) / Math.max(p.base_price, 1));
     const rw = words(r.title + ' ' + r.description);
     score += [...rw].filter((w) => tw.has(w)).length * 0.3;
     return { score, r };
-  }).sort((a, b) => b.score - a.score).slice(0, 4).map((x) => card(x.r));
+  }).sort((a, b) => b.score - a.score).slice(0, 4);
+  return Promise.all(ranked.map((x) => card(x.r)));
 }
 module.exports = { describeProduct, similarProducts };

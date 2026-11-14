@@ -38,11 +38,13 @@ function parse(token) {
   return d.e > Date.now() ? d.u : null;
 }
 // Attach req.user if a valid bearer token is present
-function loadUser(req, _res, next) {
-  const h = req.headers.authorization || '';
-  const uid = parse(h.startsWith('Bearer ') ? h.slice(7) : null);
-  req.user = uid ? db.prepare('SELECT id,email,name,role,shop_name,status FROM users WHERE id=?').get(uid) : null;
-  next();
+async function loadUser(req, _res, next) {
+  try {
+    const h = req.headers.authorization || '';
+    const uid = parse(h.startsWith('Bearer ') ? h.slice(7) : null);
+    req.user = uid ? (await db.get('SELECT id,email,name,role,shop_name,status FROM users WHERE id=?', [uid])) || null : null;
+    next();
+  } catch (e) { next(e); }
 }
 const requireRole = (...roles) => (req, _res, next) => {
   if (!req.user) return next(new HttpError(401, 'Please log in'));

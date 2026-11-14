@@ -1,20 +1,14 @@
 // Seeds demo accounts, the category and the Prague Divan Bed. Safe to run repeatedly.
-// `node server/seed.js --reset` wipes the database file first.
-const fs = require('fs');
-const path = require('path');
-if (process.argv.includes('--reset')) {
-  const dir = path.join(__dirname, '..', 'data');
-  for (const f of ['marketplace.db', 'marketplace.db-wal', 'marketplace.db-shm']) try { fs.unlinkSync(path.join(dir, f)); } catch {}
-}
-const { db } = require('./db');
+// `node server/seed.js --reset` wipes all tables first.
+const { db, init, reset } = require('./db');
 const { hashPassword } = require('./auth');
 const { saveProduct } = require('./products');
 
-function user(email, name, password, role, shop, status = 'approved') {
-  const ex = db.prepare('SELECT id FROM users WHERE email=?').get(email);
+async function user(email, name, password, role, shop, status = 'approved') {
+  const ex = await db.get('SELECT id FROM users WHERE email=?', [email]);
   if (ex) return ex.id;
   const { salt, hash } = hashPassword(password);
-  return Number(db.prepare('INSERT INTO users (email,name,password_hash,salt,role,shop_name,status) VALUES (?,?,?,?,?,?,?)').run(email, name, hash, salt, role, shop, status).lastInsertRowid);
+  return db.insert('INSERT INTO users (email,name,password_hash,salt,role,shop_name,status) VALUES (?,?,?,?,?,?,?)', [email, name, hash, salt, role, shop, status]);
 }
 
 const PRAGUE = {
@@ -44,21 +38,30 @@ const PRAGUE = {
   ],
 };
 
-function seed() {
-  user('admin@demo.test', 'Demo Admin', 'admin123', 'admin', null);
-  const seller = user('seller@demo.test', 'Demo Seller', 'seller123', 'seller', 'Demo Seller');
-  user('pending@demo.test', 'New Seller', 'seller123', 'seller', 'Pending Shop', 'pending');
-  user('buyer@demo.test', 'Demo Buyer', 'buyer123', 'buyer', null);
+async function seed() {
+  await user('admin@demo.test', 'Demo Admin', 'admin123', 'admin', null);
+  const seller = await user('seller@demo.test', 'Demo Seller', 'seller123', 'seller', 'Demo Seller');
+  await user('pending@demo.test', 'New Seller', 'seller123', 'seller', 'Pending Shop', 'pending');
+  await user('buyer@demo.test', 'Demo Buyer', 'buyer123', 'buyer', null);
 
-  let cat = db.prepare("SELECT id FROM categories WHERE name='Furniture'").get();
-  if (!cat) cat = { id: Number(db.prepare("INSERT INTO categories (name) VALUES ('Furniture')").run().lastInsertRowid) };
-  let sub = db.prepare("SELECT id FROM categories WHERE name='Divan Beds'").get();
-  if (!sub) sub = { id: Number(db.prepare("INSERT INTO categories (name,parent_id) VALUES ('Divan Beds',?)").run(cat.id).lastInsertRowid) };
+  let cat = await db.get("SELECT id FROM categories WHERE name='Furniture'");
+  if (!cat) cat = { id: await db.insert("INSERT INTO categories (name) VALUES ('Furniture')") };
+  let sub = await db.get("SELECT id FROM categories WHERE name='Divan Beds'");
+  if (!sub) sub = { id: await db.insert("INSERT INTO categories (name,parent_id) VALUES ('Divan Beds',?)", [cat.id]) };
 
-  if (!db.prepare('SELECT id FROM products WHERE title=?').get(PRAGUE.title)) {
-    saveProduct(seller, { ...PRAGUE, category_id: sub.id });
+  if (!(await db.get('SELECT id FROM products WHERE title=?', [PRAGUE.title]))) {
+    await saveProduct(seller, { ...PRAGUE, category_id: sub.id });
     console.log('Seeded Prague Divan Bed');
   }
 }
-seed();
-console.log('Seed complete. Accounts: admin@demo.test/admin123, seller@demo.test/seller123, buyer@demo.test/buyer123');
+
+module.exports = { seed };
+
+if (require.main === module) {
+  (async () => {
+    if (process.argv.includes('--reset')) await reset(); else await init();
+    await seed();
+    console.log('Seed complete. Accounts: admin@demo.test/admin123, seller@demo.test/seller123, buyer@demo.test/buyer123');
+    process.exit(0);
+  })().catch((e) => { console.error(e); process.exit(1); });
+}

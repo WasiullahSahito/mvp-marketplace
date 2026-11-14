@@ -55,52 +55,52 @@ function validate(p) {
   return out;
 }
 
-function saveProduct(sellerId, payload, productId = null) {
+async function saveProduct(sellerId, payload, productId = null) {
   const p = validate(payload);
-  return tx(() => {
+  return tx(async (t) => {
     let id = productId;
     if (id) {
-      const own = db.prepare('SELECT id FROM products WHERE id=? AND seller_id=?').get(id, sellerId);
+      const own = await t.get('SELECT id FROM products WHERE id=? AND seller_id=?', [id, sellerId]);
       if (!own) throw new HttpError(404, 'Product not found');
-      db.prepare('UPDATE products SET title=?, description=?, category_id=?, base_price=?, compare_at_price=? WHERE id=?')
-        .run(p.title, p.description, p.category_id, p.base_price, p.compare_at_price, id);
+      await t.run('UPDATE products SET title=?, description=?, category_id=?, base_price=?, compare_at_price=? WHERE id=?',
+        [p.title, p.description, p.category_id, p.base_price, p.compare_at_price, id]);
     } else {
-      id = Number(db.prepare('INSERT INTO products (seller_id,title,description,category_id,base_price,compare_at_price) VALUES (?,?,?,?,?,?)')
-        .run(sellerId, p.title, p.description, p.category_id, p.base_price, p.compare_at_price).lastInsertRowid);
+      id = await t.insert('INSERT INTO products (seller_id,title,description,category_id,base_price,compare_at_price) VALUES (?,?,?,?,?,?)',
+        [sellerId, p.title, p.description, p.category_id, p.base_price, p.compare_at_price]);
     }
-    db.prepare('DELETE FROM product_images WHERE product_id=?').run(id);
-    p.images.forEach((url, i) => db.prepare('INSERT INTO product_images (product_id,url,position) VALUES (?,?,?)').run(id, url, i));
+    await t.run('DELETE FROM product_images WHERE product_id=?', [id]);
+    for (let i = 0; i < p.images.length; i++) await t.run('INSERT INTO product_images (product_id,url,position) VALUES (?,?,?)', [id, p.images[i], i]);
 
     // upsert groups/values by id; delete the ones the seller removed
     const keepG = [];
     for (const g of p.groups) {
-      let gid = g.id && db.prepare('SELECT id FROM option_groups WHERE id=? AND product_id=?').get(g.id, id) ? g.id : null;
-      if (gid) db.prepare('UPDATE option_groups SET name=?, type=?, required=?, position=? WHERE id=?').run(g.name, g.type, g.required, g.position, gid);
-      else gid = Number(db.prepare('INSERT INTO option_groups (product_id,name,type,required,position) VALUES (?,?,?,?,?)').run(id, g.name, g.type, g.required, g.position).lastInsertRowid);
+      let gid = g.id && (await t.get('SELECT id FROM option_groups WHERE id=? AND product_id=?', [g.id, id])) ? g.id : null;
+      if (gid) await t.run('UPDATE option_groups SET name=?, type=?, required=?, position=? WHERE id=?', [g.name, g.type, g.required, g.position, gid]);
+      else gid = await t.insert('INSERT INTO option_groups (product_id,name,type,required,position) VALUES (?,?,?,?,?)', [id, g.name, g.type, g.required, g.position]);
       keepG.push(gid);
       const keepV = [];
       for (const v of g.values) {
-        let vid = v.id && db.prepare('SELECT id FROM option_values WHERE id=? AND group_id=?').get(v.id, gid) ? v.id : null;
-        if (vid) db.prepare('UPDATE option_values SET label=?, price_delta=?, hex=?, image_url=?, position=? WHERE id=?').run(v.label, v.price_delta, v.hex, v.image_url, v.position, vid);
-        else vid = Number(db.prepare('INSERT INTO option_values (group_id,label,price_delta,hex,image_url,position) VALUES (?,?,?,?,?,?)').run(gid, v.label, v.price_delta, v.hex, v.image_url, v.position).lastInsertRowid);
+        let vid = v.id && (await t.get('SELECT id FROM option_values WHERE id=? AND group_id=?', [v.id, gid])) ? v.id : null;
+        if (vid) await t.run('UPDATE option_values SET label=?, price_delta=?, hex=?, image_url=?, position=? WHERE id=?', [v.label, v.price_delta, v.hex, v.image_url, v.position, vid]);
+        else vid = await t.insert('INSERT INTO option_values (group_id,label,price_delta,hex,image_url,position) VALUES (?,?,?,?,?,?)', [gid, v.label, v.price_delta, v.hex, v.image_url, v.position]);
         keepV.push(vid);
       }
-      db.prepare(`DELETE FROM option_values WHERE group_id=? AND id NOT IN (${keepV.join(',')})`).run(gid);
+      await t.run(`DELETE FROM option_values WHERE group_id=? AND id NOT IN (${keepV.map(Number).join(',')})`, [gid]);
     }
-    if (keepG.length) db.prepare(`DELETE FROM option_groups WHERE product_id=? AND id NOT IN (${keepG.join(',')})`).run(id, ...[]);
-    else db.prepare('DELETE FROM option_groups WHERE product_id=?').run(id);
+    if (keepG.length) await t.run(`DELETE FROM option_groups WHERE product_id=? AND id NOT IN (${keepG.map(Number).join(',')})`, [id]);
+    else await t.run('DELETE FROM option_groups WHERE product_id=?', [id]);
     return id;
   });
 }
 
-function loadProduct(id) {
-  const p = db.prepare(`SELECT p.*, u.shop_name, u.status AS seller_status, c.name AS category_name
-    FROM products p JOIN users u ON u.id=p.seller_id LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?`).get(id);
+async function loadProduct(id) {
+  const p = await db.get(`SELECT p.*, u.shop_name, u.status AS seller_status, c.name AS category_name
+    FROM products p JOIN users u ON u.id=p.seller_id LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?`, [id]);
   if (!p) return null;
-  p.images = db.prepare('SELECT url FROM product_images WHERE product_id=? ORDER BY position').all(id).map((r) => r.url);
-  p.groups = db.prepare('SELECT * FROM option_groups WHERE product_id=? ORDER BY position, id').all(id);
+  p.images = (await db.all('SELECT url FROM product_images WHERE product_id=? ORDER BY position', [id])).map((r) => r.url);
+  p.groups = await db.all('SELECT * FROM option_groups WHERE product_id=? ORDER BY position, id', [id]);
   for (const g of p.groups) {
-    g.values = db.prepare('SELECT id,label,price_delta,hex,image_url FROM option_values WHERE group_id=? ORDER BY position, id').all(g.id);
+    g.values = await db.all('SELECT id,label,price_delta,hex,image_url FROM option_values WHERE group_id=? ORDER BY position, id', [g.id]);
     g.required = !!g.required;
   }
   p.discount_percent = p.compare_at_price && p.compare_at_price > p.base_price
