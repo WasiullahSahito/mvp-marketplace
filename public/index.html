@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mini Marketplace</title>
+<meta name="theme-color" content="#1e293b">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Marketplace">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top">
+  <a class="logo" href="#/">Mini<b>Market</b></a>
+  <form class="search" id="topSearch" role="search"><input id="q" type="search" placeholder="Search products" aria-label="Search"><button aria-label="Search">🔍</button></form>
+  <nav class="links" id="nav"></nav>
+</header>
+<div id="toast" role="status" aria-live="polite"></div>
+<main id="view"></main>
+<nav class="tabbar" id="tabbar"></nav>
+<div id="lightbox" hidden><button id="lbClose" aria-label="Close">✕</button><img alt=""><button class="lbn prev" aria-label="Previous">‹</button><button class="lbn next" aria-label="Next">›</button></div>
+<script src="/app.js"></script>
+</body>
+</html>
