@@ -281,7 +281,7 @@ on(/^\/orders$/, async (_m, params) => {
 on(/^\/login$/, async (_m, params) => {
   let mode = params.mode === 'signup' ? 'signup' : 'login';
   const draw = (err = '') => {
-    view.innerHTML = `<div class="card" style="max-width:440px;margin:20px auto"><h1>${mode === 'login' ? 'Log in' : 'Create account'}</h1>
+    view.innerHTML = `<div class="card authcard"><div class="head"><div class="mark">🛋️</div><h1>${mode === 'login' ? 'Welcome back' : 'Create your account'}</h1></div><div class="body">
       <form id="af"><label class="f">Email</label><input type="email" name="email" required autocomplete="email">
       ${mode === 'signup' ? `<label class="f">Your name</label><input type="text" name="name" required>
         <label class="f">I want to</label><select name="role" id="roleSel"><option value="buyer">Buy things</option><option value="seller">Sell things</option></select>
@@ -289,7 +289,7 @@ on(/^\/login$/, async (_m, params) => {
       <label class="f">Password</label><input type="password" name="password" required minlength="6" autocomplete="${mode === 'login' ? 'current-password' : 'new-password'}">
       <div class="err">${esc(err)}</div><button class="btn block">${mode === 'login' ? 'Log in' : 'Sign up'}</button></form>
       <p><a href="#" id="swap">${mode === 'login' ? 'New here? Create an account' : 'Have an account? Log in'}</a></p>
-      <div class="hint small"><b>Demo logins</b><br>Buyer: buyer@demo.test / buyer123<br>Seller: seller@demo.test / seller123<br>Admin: admin@demo.test / admin123</div></div>`;
+      <div class="hint small"><b>Demo logins</b><br>Buyer: buyer@demo.test / buyer123<br>Seller: seller@demo.test / seller123<br>Admin: admin@demo.test / admin123</div></div></div>`;
     $('#swap').onclick = (e) => { e.preventDefault(); mode = mode === 'login' ? 'signup' : 'login'; draw(); };
     const rs = $('#roleSel'); if (rs) rs.onchange = () => { $('#shopRow').hidden = rs.value !== 'seller'; };
     $('#af').onsubmit = async (e) => {

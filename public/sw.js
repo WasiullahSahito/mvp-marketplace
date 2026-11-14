@@ -1,6 +1,6 @@
 // Minimal service worker: caches the app shell so the PWA installs and opens fast.
 // API calls always go to the network (data is never served stale).
-const CACHE = 'mm-shell-v1';
+const CACHE = 'mm-shell-v2';
 const SHELL = ['/', '/style.css', '/app.js', '/manifest.webmanifest', '/icons/icon-192.png'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', (e) => {
