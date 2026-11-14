@@ -100,7 +100,9 @@ on(/^\/?$/, async (_m, params) => {
   const f = await api('/facets');
   $('#q').value = params.q || '';
   const sel = (name, list, cur, map = (x) => x) => `<label class="f">${name}</label><select data-f="${name.toLowerCase()}"><option value="">All</option>${list.map((x) => `<option value="${esc(map(x).v)}" ${String(cur) === String(map(x).v) ? 'selected' : ''}>${esc(map(x).t)}</option>`).join('')}</select>`;
-  view.innerHTML = `<div class="layout">
+  const hero = (!params.q && !params.minPrice && !params.maxPrice && !params.category && !params.colour && !params.size)
+    ? `<section class="hero"><div><h1>Furniture, your way</h1><p>Pick your colour, size and storage – the price updates as you choose.</p></div><a class="btn accent" href="#/p/1">Shop the Prague Divan Bed</a></section>` : '';
+  view.innerHTML = `${hero}<div class="layout">
     <details class="filters card" ${window.innerWidth >= 800 ? 'open' : ''}><summary>Filters</summary>
       <div class="row"><div><label class="f">Min £</label><input type="number" min="0" id="fmin" value="${esc(params.minPrice || '')}"></div>
       <div><label class="f">Max £</label><input type="number" min="0" id="fmax" value="${esc(params.maxPrice || '')}"></div></div>
@@ -110,7 +112,7 @@ on(/^\/?$/, async (_m, params) => {
       ${sel('Sort', [{ v: 'price_asc', t: 'Price: low to high' }, { v: 'price_desc', t: 'Price: high to low' }], params.sort, (x) => x)}
       <button class="btn block" style="margin-top:12px" id="applyF">Apply</button>
       <a class="btn alt block" style="margin-top:8px" href="#/">Clear</a></details>
-    <section><h1>${params.q ? `Results for “${esc(params.q)}”` : 'All products'}</h1><div id="results" class="muted">Loading…</div></section></div>`;
+    <section><h1>${params.q ? `Results for “${esc(params.q)}”` : 'All products'}</h1><div id="results"><div class="grid">${'<div class="skel"></div>'.repeat(4)}</div></div></section></div>`;
   $('#applyF').onclick = () => {
     const p = new URLSearchParams();
     if ($('#q').value.trim()) p.set('q', $('#q').value.trim());
@@ -120,8 +122,8 @@ on(/^\/?$/, async (_m, params) => {
     location.hash = '#/?' + p.toString();
   };
   const list = await api('/products?' + new URLSearchParams(params).toString());
-  $('#results').className = '';
-  $('#results').innerHTML = list.length ? `<div class="grid">${list.map(cardHtml).join('')}</div>` : '<div class="card">No products match your search.</div>';
+  $('#results').innerHTML = `<div class="small muted" style="margin-bottom:8px">${list.length} product${list.length === 1 ? '' : 's'}</div>` +
+    (list.length ? `<div class="grid">${list.map(cardHtml).join('')}</div>` : '<div class="card empty"><div class="emoji">🔍</div><b>No products match</b><p class="muted">Try a different search or clear the filters.</p><a class="btn" href="#/">Clear filters</a></div>');
 });
 
 // ============ PRODUCT PAGE ============
@@ -163,12 +165,17 @@ on(/^\/p\/(\d+)$/, async (m) => {
 
   function renderInfo() {
     const c = colourVal();
-    $('#info').innerHTML = `<h1 id="ptitle">${esc(titleNow())}</h1>
+    $('#info').innerHTML = `<div class="crumbs"><a href="#/">Shop</a> › ${esc(p.category_name || 'Products')}</div><h1 id="ptitle">${esc(titleNow())}</h1>
       <div class="small muted">Sold by ${esc(p.shop_name)} · ${esc(p.category_name || '')}</div>
       <div style="margin:10px 0"><span class="bigprice" id="bigPrice">${money(price())}</span>
         ${p.compare_at_price ? `<span class="was">${money(p.compare_at_price)}</span> <span class="pill" style="background:#fee2e2;color:var(--red)">${p.discount_percent}% OFF</span>` : ''}</div>
       <div class="small muted">Base price ${money(p.base_price)} + selected options</div>
       ${p.groups.map((g) => groupHtml(g, c)).join('')}
+      <div class="summary"><b>Your selection</b>
+        <div class="srow"><span>Base price</span><span>${money(p.base_price)}</span></div>
+        ${chosen().filter(({ v }) => v.price_delta).map(({ g, v }) => `<div class="srow"><span>${esc(g.name)}: ${esc(v.label)}</span><span>+${money(v.price_delta)}</span></div>`).join('')}
+        <div class="srow tot"><span>Total</span><span>${money(price())}</span></div></div>
+      <ul class="trust"><li>🚚 Delivery arranged by the seller</li><li>🔒 Demo checkout – no payment taken</li></ul>
       <h2>Description</h2><p>${esc(p.description)}</p>`;
     $('#info').querySelectorAll('[data-g]').forEach((b) => b.onclick = () => {
       const gid = +b.dataset.g, vid = +b.dataset.v, g = p.groups.find((x) => x.id === gid);
@@ -219,7 +226,7 @@ const optList = (opts) => `<ul>${opts.map((o) => `<li><b>${esc(o.group)}:</b> ${
 on(/^\/cart$/, async () => {
   if (!guard('buyer', 'seller', 'admin')) return;
   const c = await api('/cart');
-  if (!c.lines.length) { view.innerHTML = '<h1>Your basket</h1><div class="card">Your basket is empty. <a href="#/">Keep shopping</a></div>'; return; }
+  if (!c.lines.length) { view.innerHTML = '<h1>Your basket</h1><div class="card empty"><div class="emoji">🛒</div><b>Your basket is empty</b><p class="muted">Find something you like and it will appear here.</p><a class="btn accent" href="#/">Start shopping</a></div>'; return; }
   view.innerHTML = `<h1>Your basket</h1>${c.lines.map((l) => `<div class="card line">
     <img src="${esc(l.image || '')}" alt=""><div style="flex:1;min-width:0"><b>${esc(l.title)}</b>${optList(l.options)}
     <div class="row" style="justify-content:space-between"><div class="qty"><button data-q="${l.id}" data-n="${l.qty - 1}" ${l.qty <= 1 ? 'disabled' : ''} aria-label="Less">−</button><span>${l.qty}</span><button data-q="${l.id}" data-n="${l.qty + 1}" aria-label="More">+</button></div>
@@ -251,10 +258,15 @@ on(/^\/checkout$/, async () => {
 });
 
 // ============ BUYER ORDERS ============
+function stepper(status) {
+  const steps = ['New', 'Confirmed', 'Shipped', 'Delivered']; const at = steps.indexOf(status);
+  return `<div class="steps">${steps.map((s, i) => `<div class="step ${i <= at ? 'done' : ''} ${i === at ? 'cur' : ''}"><i>${i < at ? '✓' : i + 1}</i><span>${s}</span></div>`).join('')}</div>`;
+}
 function orderCard(o, forSeller) {
   return `<div class="card"><div class="row" style="justify-content:space-between"><b>Order #${o.id}</b>${forSeller ? '' : statusPill(o.status)}</div>
     <div class="small muted">${esc(o.created_at)} UTC · ${forSeller ? 'Buyer: ' + esc(o.buyer_name) : 'Seller: ' + esc(o.shop_name)}</div>
     ${o.items.map((i) => `<div class="line" style="margin:8px 0"><img src="${esc(i.image_url || '')}" alt=""><div><b>${esc(i.title)}</b> × ${i.qty}${optList(i.options)}<b>${money(i.unit_price * i.qty)}</b></div></div>`).join('')}
+    ${forSeller ? '' : stepper(o.status)}
     <div class="row" style="justify-content:space-between"><b>Total ${money(o.total)}</b></div>
     ${forSeller ? `<div class="small muted">Ship to: ${esc(o.ship_name)}, ${esc(o.ship_address)} ${esc(o.ship_phone || '')}</div>
       <label class="f">Status</label><select data-status="${o.id}">${['New', 'Confirmed', 'Shipped', 'Delivered'].map((s) => `<option ${s === o.status ? 'selected' : ''}>${s}</option>`).join('')}</select>` : ''}</div>`;

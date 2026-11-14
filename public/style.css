@@ -90,3 +90,31 @@ table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px so
 #lbClose{top:14px;right:14px}.lbn.prev{left:10px}.lbn.next{right:10px}
 .banner{background:#fef3c7;border:1px solid #fcd34d;border-radius:var(--r);padding:10px 12px;margin-bottom:12px}
 .hint{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;font-size:.88rem}
+
+/* ---- UX polish ---- */
+:focus-visible{outline:3px solid #2563eb;outline-offset:2px}
+button,a,.pcard,.ch,.sw{transition:transform .12s,box-shadow .15s,background .15s,border-color .15s}
+.btn:active,.ch:active,.sw:active{transform:scale(.97)}
+.btn.accent:hover{background:#d98a06}
+.pcard:hover{box-shadow:0 8px 22px #0f172a1a;transform:translateY(-2px)}
+.card{box-shadow:0 1px 2px #0f172a0d}
+.hero{background:linear-gradient(120deg,#1e293b,#334155);color:#fff;border-radius:14px;padding:22px 18px;margin-bottom:14px;display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.hero h1{margin:0 0 4px;font-size:1.5rem}.hero p{margin:0;color:#cbd5e1}
+.skel{aspect-ratio:3/4;border-radius:var(--r);background:linear-gradient(90deg,#e8edf3 25%,#f4f7fa 50%,#e8edf3 75%);background-size:200% 100%;animation:sh 1.2s infinite}
+@keyframes sh{to{background-position:-200% 0}}
+.empty{text-align:center;padding:30px 16px}.empty .emoji{font-size:2.4rem}
+.crumbs{font-size:.85rem;color:var(--muted);margin-bottom:4px}.crumbs a{text-decoration:none}
+.summary{background:#f8fafc;border:1px solid var(--line);border-radius:var(--r);padding:12px;margin:16px 0}
+.srow{display:flex;justify-content:space-between;gap:10px;padding:3px 0;font-size:.92rem}
+.srow.tot{border-top:1px solid var(--line);margin-top:6px;padding-top:8px;font-weight:800;font-size:1.05rem}
+.trust{list-style:none;padding:0;margin:0;color:var(--muted);font-size:.88rem;display:grid;gap:4px}
+.steps{display:flex;margin:12px 0}
+.step{flex:1;text-align:center;position:relative;font-size:.72rem;color:var(--muted)}
+.step i{display:flex;width:26px;height:26px;margin:0 auto 4px;border-radius:50%;background:#e2e8f0;align-items:center;justify-content:center;font-style:normal;font-weight:700;position:relative;z-index:1}
+.step::before{content:"";position:absolute;top:12px;left:-50%;width:100%;height:3px;background:#e2e8f0}
+.step:first-child::before{display:none}
+.step.done::before,.step.done i{background:var(--green);color:#fff}
+.step.cur{font-weight:700;color:var(--ink)}
+.sw:hover{transform:scale(1.08)}
+.ch:hover{border-color:var(--brand)}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
