@@ -45,7 +45,7 @@ Schema is created by `server/db.js` on start; `server/seed.js` inserts the accou
 - **AI:** (1) "Describe my product photo" in the seller form – uses Claude vision if `ANTHROPIC_API_KEY` is set, otherwise a rule-based template; (2) "You might also like" similar-product recommendations (scored on category, price closeness, shared words).
 - **Mobile:** 360px+, 44px tap targets, sticky Add-to-Basket bar, bottom tab bar, swipe gallery.
 
-## Mobile app = PWA
+## Mobile app = PWA + React Native app (see mobile/README.md)
 Open the live link on the phone.
 - **Android (Chrome):** ⋮ menu → *Install app* / *Add to Home screen*.
 - **iPhone (Safari):** Share → *Add to Home Screen*.
@@ -56,7 +56,7 @@ SQLite needs a persistent disk, so deploy on a Node host with a volume (Render, 
 
 ## Honest status
 **Done:** everything in sections 2–3 as described above.
-**Not done / not verified:** not yet deployed; the browser UI was not tested on a real phone or in automated browser tests (API flows were tested with curl); no video recorded; no git commits yet (repo not initialised); colour names are plausible "Naples" fabric names, not copied from the reference page (it could not be fetched); AI "describe photo" only uses real vision with an API key; no push notification; basket requires login.
+**Not done / not verified:** React Native app in `mobile/` bundles but has not been run on a device and no APK is built yet; not yet deployed; the browser UI was not tested on a real phone or in automated browser tests (API flows were tested with curl); no video recorded; no git commits yet (repo not initialised); colour names are plausible "Naples" fabric names, not copied from the reference page (it could not be fetched); AI "describe photo" only uses real vision with an API key; no push notification; basket requires login.
 **With 2 more weeks:** Postgres + migrations, automated tests (Playwright for the option/price rules), real image optimisation/storage, per-colour photos, guest basket, order-status push notifications, proper seller onboarding/KYC, pagination.
 
 ## AI notes
