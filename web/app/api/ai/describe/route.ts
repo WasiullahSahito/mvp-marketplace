@@ -13,8 +13,9 @@ const MOCK = {
 };
 
 // Ollama Cloud by default. Set OLLAMA_BASE_URL=http://localhost:11434 to use a local Ollama instead.
-const BASE_URL = process.env.OLLAMA_BASE_URL ?? "https://ollama.com";
-const MODEL = process.env.OLLAMA_MODEL ?? "gemma4:31b"; // must be a vision model
+// (`||` not `??`, so an empty line like `OLLAMA_MODEL=` in .env also falls back to the default.)
+const BASE_URL = process.env.OLLAMA_BASE_URL || "https://ollama.com";
+const MODEL = process.env.OLLAMA_MODEL || "gemma4:31b"; // must be a vision model
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 export async function POST(request: Request) {
@@ -67,7 +68,12 @@ export async function POST(request: Request) {
 
     if (!res.ok) {
       console.error("Ollama error:", res.status, (await res.text()).slice(0, 300));
-      const message = res.status === 429 ? "The AI is busy. Please try again in a minute." : "The AI request failed. Please try again or write it yourself.";
+      const message =
+        res.status === 429
+          ? "The AI is busy. Please try again in a minute."
+          : res.status === 402
+            ? "The AI account is out of credits. Please write the title and description yourself."
+            : "The AI request failed. Please try again or write it yourself.";
       return NextResponse.json({ error: message }, { status: 502 });
     }
 
