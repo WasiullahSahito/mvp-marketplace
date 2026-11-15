@@ -1,7 +1,7 @@
 # PLAN: Mini Marketplace MVP
 
 ## 1. What I understood
-<!-- TODO: Imran fills in from JD -->
+<!-- TODO (REQUIRED, before submitting): replace the paragraph below with what YOU understood from the JD and the company projects, in your own words, and list your questions. -->
 (Generic draft, to be replaced.) The company appears to build multi-vendor marketplaces (Amazon/eBay style): sellers list products with variations, buyers browse, configure and order, and an admin moderates. A product with many options (colour, size, storage, extras) must show a live price, and the server must be the single source of truth for that price. I would build first the thin end-to-end core: seller lists a product, buyer configures it, orders it, seller moves the order through its statuses. Search, filters, moderation and AI helpers come after that.
 
 ## 2. Stack, tables, scope, time
@@ -9,12 +9,12 @@
 **Stack**
 - Supabase: Postgres, Auth, Storage, RLS. One DB for web and mobile.
 - Checkout is the Postgres function `place_order(...)`. It recomputes prices from DB option values and writes order + items in one transaction.
-- Web: Next.js (App Router, TS), Tailwind, Vercel. Server routes for the AI call (Claude vision, mock fallback) and admin actions.
-- Mobile: Expo (TS), Expo Router, supabase-js, React Context for state. Android APK via EAS cloud build (no Android SDK or `adb` on this machine).
-- Shared `calculatePrice` in `packages/shared` (npm workspace). Fallback: two identical copies with tests for both.
+- Web: Next.js (App Router, TS), Tailwind, Vercel. A server route for the AI call (Gemini vision, labelled demo fallback). Admin actions go through the database with RLS.
+- Mobile: Expo (TS), supabase-js, React Context for state, a simple tab state instead of a router. Android APK via EAS cloud build (no Android SDK or `adb` on this machine).
+- Shared `calculatePrice` in `packages/shared`: the web app uses it as an npm workspace package, the mobile app imports the same file through Metro (`mobile/metro.config.js`). One copy, one set of tests.
 
 **Tables**
-profiles(role, status), categories, products, product_images, option_groups(type swatch|select|checkbox), option_values(price_delta, hex), orders, order_items (snapshots). The cart is kept on the client (localStorage / AsyncStorage), one line per product + sorted option-value ids, so there are no carts tables; `place_order` is the only DB write at checkout. Roles are enforced by RLS plus Next.js middleware.
+profiles(role, status), categories, products, product_images, option_groups(type swatch|select|checkbox), option_values(price_delta, hex), orders, order_items (snapshots). The cart is kept on the client (localStorage / AsyncStorage), one line per product + sorted option-value ids, so there are no carts tables; `place_order` is the only DB write at checkout. Roles are enforced by RLS plus the Next.js `proxy.ts` (called middleware in older versions).
 
 **Skipping**
 Real payments, emails, delivery tracking, analytics, Play/App Store publishing, push notifications, other products or categories, PWA, iOS build.
