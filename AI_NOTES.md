@@ -15,3 +15,8 @@ Running log. Entries are added as things happen during the build.
 ## Decisions I (the human) must be able to explain
 - Cart lives on the client (localStorage / AsyncStorage). Only `place_order` touches the DB at checkout.
 - `place_order` ignores any price sent by the client and recomputes it from `option_values`.
+
+2. **Wrong hand-calculated expected prices in unit tests.**
+   The AI wrote expected totals for two option combinations by mental arithmetic (£639.99 and £499.98); the real sums are £609.99 and £449.98.
+   `calculatePrice` was right; the tests failed and exposed the slip. Fixed the expectations and re-checked the sums with a second tool.
+   Lesson: a failing test can mean the test is wrong. Check the arithmetic before touching the code.
