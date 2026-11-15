@@ -1,7 +1,7 @@
-// "Generate title and description from a product photo", using Ollama (a vision model).
-// Runs on the server so OLLAMA_API_KEY never reaches the browser.
-// If the key is missing (or there is no photo yet) it returns a clearly labelled demo suggestion instead,
-// so the demo never breaks.
+// "Generate title and description from a product photo", using Google Gemini (a vision model).
+// Runs on the server so GEMINI_API_KEY never reaches the browser.
+// If the key is missing, there is no photo yet, or the AI is out of quota, it returns a clearly labelled
+// demo suggestion instead, so the form never breaks.
 import { NextResponse } from "next/server";
 import { getUserAndRole } from "@/lib/supabase/server";
 
@@ -12,10 +12,8 @@ const MOCK = {
   mock: true,
 };
 
-// Ollama Cloud by default. Set OLLAMA_BASE_URL=http://localhost:11434 to use a local Ollama instead.
-// (`||` not `??`, so an empty line like `OLLAMA_MODEL=` in .env also falls back to the default.)
-const BASE_URL = process.env.OLLAMA_BASE_URL || "https://ollama.com";
-const MODEL = process.env.OLLAMA_MODEL || "gemma4:31b"; // must be a vision model
+// `||` (not `??`) so an empty line like `GEMINI_MODEL=` in .env also falls back to the default.
+const MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite"; // must accept images
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 export async function POST(request: Request) {
@@ -31,50 +29,49 @@ export async function POST(request: Request) {
   const allowedPrefix = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product-images/`;
   const photoOk = typeof imageUrl === "string" && imageUrl.startsWith(allowedPrefix);
 
-  const hasKey = !!process.env.OLLAMA_API_KEY || !!process.env.OLLAMA_BASE_URL; // local Ollama needs no key
   // `reason` tells the form why it got a demo suggestion, so the note can be accurate.
   if (!photoOk) return NextResponse.json({ ...MOCK, reason: "no_photo" });
-  if (!hasKey) return NextResponse.json({ ...MOCK, reason: "no_key" });
+  if (!process.env.GEMINI_API_KEY) return NextResponse.json({ ...MOCK, reason: "no_key" });
 
   try {
-    // Ollama's REST API wants the image as base64, not a url, so download it first.
+    // Send the photo as base64, so download it first.
     const imageRes = await fetch(imageUrl!, { signal: AbortSignal.timeout(10_000) });
     if (!imageRes.ok) throw new Error(`Image download failed (${imageRes.status})`);
     const bytes = Buffer.from(await imageRes.arrayBuffer());
     if (bytes.length > MAX_IMAGE_BYTES) {
       return NextResponse.json({ error: "That photo is too large for the AI (max 5 MB)." }, { status: 422 });
     }
+    const mimeType = (imageRes.headers.get("content-type") ?? "image/jpeg").split(";")[0];
 
-    const res = await fetch(`${BASE_URL}/api/chat`, {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(process.env.OLLAMA_API_KEY ? { Authorization: `Bearer ${process.env.OLLAMA_API_KEY}` } : {}),
-      },
+      headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY },
       body: JSON.stringify({
-        model: MODEL,
-        stream: false,
-        messages: [
+        contents: [
           {
-            role: "user",
-            content:
-              'You write product listings for an online furniture marketplace. Look at this product photo and write a short, honest title (max 70 characters) and a friendly description (2-3 sentences). Only mention what you can see. Reply with ONLY a JSON object like {"title": "...", "description": "..."} and nothing else.',
-            images: [bytes.toString("base64")],
+            parts: [
+              {
+                text: "You write product listings for an online furniture marketplace. Look at this product photo and write a short, honest title (max 70 characters) and a friendly description (2-3 sentences). Only mention what you can see. Reply with ONLY a JSON object like {\"title\": \"...\", \"description\": \"...\"}.",
+              },
+              { inline_data: { mime_type: mimeType, data: bytes.toString("base64") } },
+            ],
           },
         ],
+        generationConfig: { responseMimeType: "application/json" },
       }),
       signal: AbortSignal.timeout(60_000),
     });
 
     if (!res.ok) {
-      console.error("Ollama error:", res.status, (await res.text()).slice(0, 300));
-      // No credits (402) or busy (429): fall back to the labelled demo suggestion so the form still works.
-      if (res.status === 402 || res.status === 429) return NextResponse.json({ ...MOCK, reason: "unavailable" });
+      console.error("Gemini error:", res.status, (await res.text()).slice(0, 300));
+      // Out of quota / too busy: fall back to the labelled demo suggestion so the form still works.
+      if (res.status === 429) return NextResponse.json({ ...MOCK, reason: "unavailable" });
       return NextResponse.json({ error: "The AI request failed. Please try again or write it yourself." }, { status: 502 });
     }
 
-    const data = (await res.json()) as { message?: { content?: string } };
-    const parsed = extractJson(data.message?.content ?? "");
+    const data = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+    const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+    const parsed = extractJson(text);
     if (!parsed) {
       return NextResponse.json({ error: "The AI gave an unreadable answer. Please try again or write it yourself." }, { status: 502 });
     }
@@ -86,8 +83,7 @@ export async function POST(request: Request) {
   }
 }
 
-// Ollama cloud models cannot force a JSON schema, so the model may wrap the JSON in text or ``` fences.
-// Take the first {...} block and check it has the two strings we need.
+// The model should return pure JSON, but be forgiving: take the first {...} block and check it has the two strings we need.
 function extractJson(text: string): { title: string; description: string } | null {
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
