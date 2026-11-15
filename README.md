@@ -2,7 +2,9 @@
 
 A small multi-vendor marketplace: a responsive **Next.js web app** and a **React Native (Expo) mobile app**, both on ONE shared **Supabase** backend, with one reference product (a divan bed with colour, size, storage, headboard, base and assembly options).
 
-> Status: web app done. Mobile app: see STATUS.md.
+> **Live web app:** https://mvp-marketplace-seven.vercel.app/  
+> **Android APK:** link added after the EAS build (see "Build the Android APK" below).  
+> Status: web and mobile apps built; see STATUS.md.
 
 ## Repo layout
 

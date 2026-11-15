@@ -15,6 +15,12 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "cd227cfc-b166-4620-b75d-b00048d16649"
+      }
+    },
+    "owner": "wasisehto"
   }
 }
