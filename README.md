@@ -32,6 +32,33 @@ npm test                          # pricing unit tests (vitest)
 npm run dev --workspace web       # http://localhost:3000
 ```
 
+## Run the mobile app (Expo)
+
+The mobile app is its own project in `mobile/` (it is not part of the npm workspaces, because React Native pins its own React version). It still imports the same `calculatePrice` from `packages/shared` (Metro is pointed at it in `mobile/metro.config.js`).
+
+```bash
+cd mobile
+npm install
+# mobile/.env needs EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (same values as the web app)
+npx expo start          # scan the QR code with the Expo Go app on your phone (same Wi-Fi)
+npx expo start --web    # or preview in a browser
+```
+
+Log in with `buyer@test.com` / `Test1234!`. Screens: login (or sign up as a buyer), product list with search, product page (swipeable gallery, colour swatches, size/storage/headboard/base, assembly checkbox, live price, sticky bar), basket, fake checkout through `place_order`, orders with status steps. Sellers and admins use the web app.
+
+### Build the Android APK (EAS, no Android SDK needed)
+
+```bash
+cd mobile
+npx eas-cli login
+npx eas-cli init                        # links the project to your Expo account
+npx eas-cli env:create --environment preview --name EXPO_PUBLIC_SUPABASE_URL --value <url> --visibility plaintext
+npx eas-cli env:create --environment preview --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value <anon key> --visibility plaintext
+npx eas-cli build -p android --profile preview
+```
+
+When the build finishes, EAS prints a download link for the `.apk`. Only the public anon key is used; the service-role key is never in the app.
+
 ## Database setup (Supabase)
 
 1. Create a project at supabase.com.
