@@ -1,63 +1,76 @@
-# Mini Marketplace – MVP Skills Test
+# Mini Marketplace
 
-Multi-vendor marketplace slice: sellers list products with database-driven variations (colour swatches, size, storage, headboard, base, assembly), buyers browse / filter / basket / fake-checkout, sellers manage order status, admin approves sellers and listings. The same backend serves the responsive web app and the installable PWA.
+A small multi-vendor marketplace: a responsive **Next.js web app** and a **React Native (Expo) mobile app**, both on ONE shared **Supabase** backend, with one reference product (a divan bed with colour, size, storage, headboard, base and assembly options).
 
-> Reference product only: "Prague Divan Bed – Cream Naples". No third-party logo, brand or photos are used – images are generated placeholders, shop name is "Demo Seller".
+> Status: web app done. Mobile app: see STATUS.md.
 
-## Plan (as required in section 5)
+## Repo layout
 
-**What I understood:** a marketplace like Amazon/eBay where the hard part is *variation pricing driven by seller-entered data*, plus roles, orders and a shared backend for web and mobile. **Built first:** DB schema + pricing engine → seller form → product page with live price → cart/checkout → orders → admin → PWA polish. *(I did not have the JD in the docx, so I could not tailor this to your specific projects – please send it if you want me to.)*
+| Folder | What |
+|---|---|
+| `supabase/migrations` | Schema, Row Level Security, `place_order` and `set_order_status` functions, storage bucket |
+| `supabase/seed.sql` | Test accounts and the sample product |
+| `packages/shared` | `calculatePrice` (the ONE pricing function) + shared types + unit tests |
+| `web` | Next.js 16 (App Router, TypeScript, Tailwind) |
+| `mobile` | Expo app (added after the web app) |
 
-**Stack:** Node 22 + Express, SQLite (`node:sqlite`, built in), vanilla JS single-page front end, PWA (manifest + service worker). No build step.
-**Tables:** `users` (role buyer/seller/admin, status approved/pending/hidden), `categories`, `products`, `product_images`, `option_groups` (swatch/select/checkbox), `option_values` (numeric `price_delta`, `hex`), `cart_items` (unique per product+option combination), `orders` (one per seller), `order_items` (option snapshot).
-**Skipped on purpose:** real payments, emails, delivery tracking, analytics, guest (logged-out) basket, push notifications, Play/App store.
+## How it works (the 4 things to explain)
 
-## Run it
+1. **Options are data.** Colours, sizes, storage etc. are rows in `option_groups` / `option_values`, entered by the seller. The product page just renders whatever groups exist.
+2. **Live price** = `calculatePrice(base_price, chosen options)` in `packages/shared/src/pricing.ts`. Works in pence to avoid float errors.
+3. **Server is the authority.** Checkout calls the Postgres function `place_order`. It receives only product ids, option value ids and quantities, and recomputes every price from the database. The browser's total is only a preview.
+4. **Roles** live in `profiles.role`. `web/proxy.ts` redirects people away from pages that are not theirs (Next.js 16 renamed "middleware" to "proxy"), and RLS policies in the database enforce it for real.
+
+## Run locally
+
+Needs Node 20+.
 
 ```bash
-npm install
-npm start          # http://localhost:3000  (auto-creates and seeds data/marketplace.db on first run)
-npm run seed       # wipe + reseed demo data
+npm install                       # from the repo root (npm workspaces)
+cp .env.example web/.env.local    # then fill in the Supabase values
+npm test                          # pricing unit tests (vitest)
+npm run dev --workspace web       # http://localhost:3000
 ```
-Requires Node ≥ 22.13. Copy `.env.example` to `.env` for optional settings (`SESSION_SECRET`, `ANTHROPIC_API_KEY`). Secrets are never committed (`.env`, `data/`, `uploads/` are git-ignored).
 
-## Test accounts
+## Database setup (Supabase)
 
-| Role | Email | Password |
+1. Create a project at supabase.com.
+2. **SQL Editor** → paste all of `supabase/migrations/20260101000000_schema.sql` → Run.
+3. **SQL Editor** → paste all of `supabase/seed.sql` → Run.
+4. **Authentication → Providers → Email**: turn **off** "Confirm email" (so sign-up works instantly in the demo).
+5. **Project Settings → API**: copy the Project URL and the publishable (anon) key.
+
+## Environment variables
+
+| Variable | Where | Notes |
 |---|---|---|
-| Buyer | buyer@demo.test | buyer123 |
-| Seller (approved) | seller@demo.test | seller123 |
-| Seller (pending approval) | pending@demo.test | seller123 |
-| Admin | admin@demo.test | admin123 |
+| `NEXT_PUBLIC_SUPABASE_URL` | web | public |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | web | public publishable key |
+| `ANTHROPIC_API_KEY` | web, server only | optional; without it the AI button returns a labelled demo suggestion |
+| `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` | mobile | same values as web |
 
-## Database set-up
-Schema is created by `server/db.js` on start; `server/seed.js` inserts the accounts, category *Furniture > Divan Beds*, and the Prague bed **through the same `saveProduct()` code the seller form uses**. Prices are `REAL` columns. Nothing about options is hard-coded in the buyer page – `app.js` renders whatever groups/values the API returns. The server recomputes every price (`server/products.js → priceSelection`) so the cart/checkout cannot be tampered with.
+The Supabase service-role key is **never** used by any client and is not in this repo. `.env*` files are git-ignored; only `.env.example` is committed.
 
-## Pricing rules
-`price = base_price + Σ selected option price_delta`. Example: Grey, King (+125), 4 Drawers (+210), 54" headboard (+10), Reinforced base (+25), assembly (+39.99) = **£679.98**. Different option combinations are separate cart lines; the same combination increments quantity.
+## Deploy the web app on Vercel
 
-> Note: the brief says the base price is for "small single", yet also lists Small Single 2FT6 as **+90**. I followed the size table literally (Small Single = £359.99 with defaults). Changing it is a one-line edit in the seller form.
+1. Push this repo to GitHub (public).
+2. vercel.com → **Add New → Project** → import the repo.
+3. **Root Directory:** `web`. Keep "Include source files outside of the Root Directory" **on** (the shared package lives in `packages/shared`). Framework preset: Next.js.
+4. **Environment Variables:** add `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and optionally `ANTHROPIC_API_KEY`.
+5. Deploy. Then in Supabase **Authentication → URL Configuration** set Site URL to your Vercel URL.
 
-## Features
-- **Seller:** sign up (needs admin approval), add/edit product, upload photos, option-group editor, hide/show, incoming orders with status (New → Confirmed → Shipped → Delivered). "Fill with Prague bed example" button pre-fills the form.
-- **Buyer:** list, search, filters (price, colour, size, category – facets come from the DB), product page (swatches show selected state + colour name, title and main image update, gallery with thumbnails, click-to-enlarge, swipe), live price, basket, fake checkout, order list.
-- **Admin:** approve/hide sellers and listings. Role checks are enforced on the server.
-- **AI:** (1) "Describe my product photo" in the seller form – uses Claude vision if `ANTHROPIC_API_KEY` is set, otherwise a rule-based template; (2) "You might also like" similar-product recommendations (scored on category, price closeness, shared words).
-- **Mobile:** 360px+, 44px tap targets, sticky Add-to-Basket bar, bottom tab bar, swipe gallery.
+## Test accounts (sample data only)
 
-## Mobile app = PWA + React Native app (see mobile/README.md)
-Open the live link on the phone.
-- **Android (Chrome):** ⋮ menu → *Install app* / *Add to Home screen*.
-- **iPhone (Safari):** Share → *Add to Home Screen*.
-It opens full screen with its own icon and uses the same API/database. (PWAs need HTTPS when hosted – Render/Railway/Fly provide it.)
+| Email | Password | Role |
+|---|---|---|
+| buyer@test.com | Test1234! | buyer |
+| seller@test.com | Test1234! | seller (approved) |
+| admin@test.com | Test1234! | admin |
 
-## Deployment
-SQLite needs a persistent disk, so deploy on a Node host with a volume (Render, Railway, Fly.io) rather than serverless Vercel/Netlify. Set `SESSION_SECRET`; start command `npm start`. To use Vercel + hosted Postgres you would swap `server/db.js` queries for a Postgres client (next step).
+## What is done / not done
 
-## Honest status
-**Done:** everything in sections 2–3 as described above.
-**Not done / not verified:** React Native app in `mobile/` bundles but has not been run on a device and no APK is built yet; not yet deployed; the browser UI was not tested on a real phone or in automated browser tests (API flows were tested with curl); no video recorded; no git commits yet (repo not initialised); colour names are plausible "Naples" fabric names, not copied from the reference page (it could not be fetched); AI "describe photo" only uses real vision with an API key; no push notification; basket requires login.
-**With 2 more weeks:** Postgres + migrations, automated tests (Playwright for the option/price rules), real image optimisation/storage, per-colour photos, guest basket, order-status push notifications, proper seller onboarding/KYC, pagination.
+Done (web): seller sign-up/login, product form with variation builder and photo upload, seller incoming orders with status steps; buyer browse, search, filters (price, colour, size, category), product page with live price, gallery with swipe and lightbox, sticky Add-to-Basket bar, cart (same options = quantity, different options = new line), fake checkout through `place_order`, order list with status; admin approve/hide for sellers and listings; AI "title and description from photo" with mock fallback; role gating in `proxy.ts` and RLS.
 
-## AI notes
-Built with Claude Code (Claude): scaffolding, schema, API, front end and this README. One thing it got wrong and I had to fix: a first-pass seed put a placeholder `0` over the Small Single size price, which would have silently dropped the +£90 – caught by calling the price API with known combinations (359.99 / 679.98).
+Deliberately skipped: real payments, emails, delivery tracking, analytics, Play/App Store publishing, push notifications, other products or categories, PWA, iOS build.
+
+Known simplifications: the cart is stored on the device (localStorage), not in the database; editing a product re-creates its options and images; colour values do not link to specific photos (the placeholder is tinted instead).
