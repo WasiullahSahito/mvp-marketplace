@@ -65,10 +65,16 @@ insert into public.option_groups (id, product_id, name, type, position, required
   ('b0000000-0000-0000-0000-000000000005', 'a0000000-0000-0000-0000-000000000001', 'Base',      'select',   4, true),
   ('b0000000-0000-0000-0000-000000000006', 'a0000000-0000-0000-0000-000000000001', 'Assembly',  'checkbox', 5, false);
 
--- Colours: TODO. Add 6-8 real swatch names from the reference product page:
--- insert into public.option_values (group_id, label, price_delta, hex, position) values
---   ('b0000000-0000-0000-0000-000000000001', '<colour name>', 0, '#RRGGBB', 0),
---   ...;
+-- Colours: names from the reference product's swatch list; hex values are approximate.
+insert into public.option_values (group_id, label, price_delta, hex, position) values
+  ('b0000000-0000-0000-0000-000000000001', 'Cream Naples',       0, '#E6DCC6', 0),
+  ('b0000000-0000-0000-0000-000000000001', 'Charcoal Coniston',  0, '#4B4D50', 1),
+  ('b0000000-0000-0000-0000-000000000001', 'Silver Plush Velvet', 0, '#B9BABC', 2),
+  ('b0000000-0000-0000-0000-000000000001', 'Seal Grey Naples',   0, '#A39C94', 3),
+  ('b0000000-0000-0000-0000-000000000001', 'Emerald Coniston',   0, '#1F5B3D', 4),
+  ('b0000000-0000-0000-0000-000000000001', 'Blue Plush Velvet',  0, '#1F4E8C', 5),
+  ('b0000000-0000-0000-0000-000000000001', 'Pink Plush Velvet',  0, '#E2A7B6', 6),
+  ('b0000000-0000-0000-0000-000000000001', 'Mocca Plush Velvet', 0, '#6A4934', 7);
 
 insert into public.option_values (group_id, label, price_delta, position) values
   ('b0000000-0000-0000-0000-000000000002', 'Small Single 2FT6', 90,  0),
