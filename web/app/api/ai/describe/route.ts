@@ -31,9 +31,9 @@ export async function POST(request: Request) {
   const photoOk = typeof imageUrl === "string" && imageUrl.startsWith(allowedPrefix);
 
   const hasKey = !!process.env.OLLAMA_API_KEY || !!process.env.OLLAMA_BASE_URL; // local Ollama needs no key
-  if (!hasKey || !photoOk) {
-    return NextResponse.json(MOCK);
-  }
+  // `reason` tells the form why it got a demo suggestion, so the note can be accurate.
+  if (!photoOk) return NextResponse.json({ ...MOCK, reason: "no_photo" });
+  if (!hasKey) return NextResponse.json({ ...MOCK, reason: "no_key" });
 
   try {
     // Ollama's REST API wants the image as base64, not a url, so download it first.

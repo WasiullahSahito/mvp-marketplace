@@ -76,7 +76,13 @@ export function ProductForm({ initial, categories }: { initial?: Product; catego
       if (!res.ok) throw new Error(json.error ?? "AI request failed");
       setTitle(json.title);
       setDescription(json.description);
-      setAiNote(json.mock ? "Demo suggestion (no AI key configured). Edit freely." : "Suggested by AI from your photo. Please check it.");
+      setAiNote(
+        !json.mock
+          ? "Suggested by AI from your photo. Please check it."
+          : json.reason === "no_photo"
+            ? "Demo suggestion: upload a photo first and the AI will describe it. Edit freely."
+            : "Demo suggestion (no AI key configured on the server). Edit freely.",
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "AI request failed");
     } finally {
