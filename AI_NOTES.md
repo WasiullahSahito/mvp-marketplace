@@ -20,3 +20,9 @@ Running log. Entries are added as things happen during the build.
    The AI wrote expected totals for two option combinations by mental arithmetic (£639.99 and £499.98); the real sums are £609.99 and £449.98.
    `calculatePrice` was right; the tests failed and exposed the slip. Fixed the expectations and re-checked the sums with a second tool.
    Lesson: a failing test can mean the test is wrong. Check the arithmetic before touching the code.
+
+3. **Page was wider than 360px, and the AI's own check hid it.**
+   The product page grid had no `grid-cols-1`, so on mobile the single column grew to fit the thumbnail strip (449px wide).
+   The AI had also added `overflow-x: hidden` on `body`, which made the "no horizontal scroll" check pass while the sticky Add-to-Basket bar was pushed off-screen.
+   Found by driving the page in real Chrome at 360px (Playwright): the button could not be clicked. Fixed with `grid-cols-1` and by checking `window.innerWidth` instead of scrollWidth.
+   Lesson: hiding overflow is not the same as having none; test at the real width.
