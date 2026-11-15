@@ -73,7 +73,9 @@ When the build finishes, EAS prints a download link for the `.apk`. Only the pub
 |---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | web | public |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | web | public publishable key |
-| `ANTHROPIC_API_KEY` | web, server only | optional; without it the AI button returns a labelled demo suggestion |
+| `OLLAMA_API_KEY` | web, server only | optional; Ollama Cloud key. Without it the AI button returns a labelled demo suggestion |
+| `OLLAMA_MODEL` | web, server only | optional; a vision model, default `gemma4:31b` |
+| `OLLAMA_BASE_URL` | web, server only | optional; default `https://ollama.com`, or `http://localhost:11434` for a local Ollama |
 | `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` | mobile | same values as web |
 
 The Supabase service-role key is **never** used by any client and is not in this repo. `.env*` files are git-ignored; only `.env.example` is committed.
@@ -83,7 +85,7 @@ The Supabase service-role key is **never** used by any client and is not in this
 1. Push this repo to GitHub (public).
 2. vercel.com → **Add New → Project** → import the repo.
 3. **Root Directory:** `web`. Keep "Include source files outside of the Root Directory" **on** (the shared package lives in `packages/shared`). Framework preset: Next.js.
-4. **Environment Variables:** add `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and optionally `ANTHROPIC_API_KEY`.
+4. **Environment Variables:** add `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and optionally `OLLAMA_API_KEY`.
 5. Deploy. Then in Supabase **Authentication → URL Configuration** set Site URL to your Vercel URL.
 
 ## Test accounts (sample data only)
@@ -96,7 +98,7 @@ The Supabase service-role key is **never** used by any client and is not in this
 
 ## What is done / not done
 
-Done (web): seller sign-up/login, product form with variation builder and photo upload, seller incoming orders with status steps; buyer browse, search, filters (price, colour, size, category), product page with live price, gallery with swipe and lightbox, sticky Add-to-Basket bar, cart (same options = quantity, different options = new line), fake checkout through `place_order`, order list with status; admin approve/hide for sellers and listings; AI "title and description from photo" with mock fallback; role gating in `proxy.ts` and RLS.
+Done (web): seller sign-up/login, product form with variation builder and photo upload, seller incoming orders with status steps; buyer browse, search, filters (price, colour, size, category), product page with live price, gallery with swipe and lightbox, sticky Add-to-Basket bar, cart (same options = quantity, different options = new line), fake checkout through `place_order`, order list with status; admin approve/hide for sellers and listings; AI "title and description from photo" (Ollama vision model) with mock fallback; role gating in `proxy.ts` and RLS.
 
 Deliberately skipped: real payments, emails, delivery tracking, analytics, Play/App Store publishing, push notifications, other products or categories, PWA, iOS build.
 
