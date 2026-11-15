@@ -68,13 +68,9 @@ export async function POST(request: Request) {
 
     if (!res.ok) {
       console.error("Ollama error:", res.status, (await res.text()).slice(0, 300));
-      const message =
-        res.status === 429
-          ? "The AI is busy. Please try again in a minute."
-          : res.status === 402
-            ? "The AI account is out of credits. Please write the title and description yourself."
-            : "The AI request failed. Please try again or write it yourself.";
-      return NextResponse.json({ error: message }, { status: 502 });
+      // No credits (402) or busy (429): fall back to the labelled demo suggestion so the form still works.
+      if (res.status === 402 || res.status === 429) return NextResponse.json({ ...MOCK, reason: "unavailable" });
+      return NextResponse.json({ error: "The AI request failed. Please try again or write it yourself." }, { status: 502 });
     }
 
     const data = (await res.json()) as { message?: { content?: string } };
